@@ -1,0 +1,17 @@
+# depslib dependency file v1.0
+1390402605 source:/home/alston/CSCI4430_Ass1/client.cpp
+
+1390412223 source:/home/alston/CSCI4430_Ass1/protocol.cpp
+	"protocol.h"
+	<stdio.h>
+	<arpa/inet.h>
+	<string.h>
+	<stdlib.h>
+
+1390409586 source:/home/alston/CSCI4430_Ass1/server.cpp
+	<stdio.h>
+	"protocol.h"
+
+1390500026 /home/alston/CSCI4430_Ass1/protocol.h
+	<stdint.h>
+
