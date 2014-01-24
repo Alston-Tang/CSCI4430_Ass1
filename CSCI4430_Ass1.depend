@@ -1,16 +1,23 @@
 # depslib dependency file v1.0
 1390402605 source:/home/alston/CSCI4430_Ass1/client.cpp
 
-1390578175 source:/home/alston/CSCI4430_Ass1/protocol.cpp
+1390578662 source:/home/alston/CSCI4430_Ass1/protocol.cpp
 	"protocol.h"
 	<stdio.h>
 	<arpa/inet.h>
 	<string.h>
 	<stdlib.h>
 
-1390578454 source:/home/alston/CSCI4430_Ass1/server.cpp
+1390591220 source:/home/alston/CSCI4430_Ass1/server.cpp
 	<stdio.h>
+	<netinet/in.h>
+	<sys/types.h>
+	<sys/socket.h>
 	<arpa/inet.h>
+	<errno.h>
+	<stdlib.h>
+	<string.h>
+	<pthread.h>
 	"protocol.h"
 
 1390500394 /home/alston/CSCI4430_Ass1/protocol.h
