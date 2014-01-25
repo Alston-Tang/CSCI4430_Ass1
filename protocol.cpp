@@ -50,8 +50,6 @@ ERRCOD createLoginMsg(MYMSG* destMsg,char* userName, uint16_t portNum)
     return 0;
 }
 
-//Bug free
-
 
 ERRCOD createLoginOkMsg(MYMSG* destMsg)
 {
@@ -202,6 +200,56 @@ msgReceiver::msgReceiver(int conSo)
 
 ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
 {
+    bool finish=false,msgValid=false;
+    int msgType=-1,remArg=0,remByte=0,msgPos=0,count,bufPos=0;
+    uint8_t msgBuf[LMSGL];
+    if (inLength!=0)
+    {
+        memcpy(msgBuf,inBuf,inLength);
+        count=inLength;
+        inLength=0;
+        remArg=getArgNum(msgBuf[0]);
+        if (remArg==-1) err("getArgNum",-1);
 
+        destMsg[0]=msgBuf[0];
+        count--;
+        bufPos++;
+        msgPos++;
+
+        while(remArg>0 && count>0)
+        {
+
+
+        }
+    }
+    while(!finish)
+    {
+        count=read(conSocket,msgBfuf,LMSGL);
+        if (!msgValid)
+        {
+
+        }
+        else
+        {
+
+        }
+    }
+    return 0;
+}
+
+int getArgNum(uint8_t msgType)
+{
+    switch (msgType)
+    {
+        case 0x01: return 2;
+        case 0x02: return 0;
+        case 0x03: return 0;
+        case 0x04: return 1;
+        case 0x10: return 1;
+        case 0x20: return 0;
+        case 0x30: return 1;
+        case 0xff: return 1;
+        default: return -1;
+    }
 }
 

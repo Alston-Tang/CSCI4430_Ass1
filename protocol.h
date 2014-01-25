@@ -66,7 +66,7 @@ ERRCOD createLoginOkMsg(MYMSG* destMsg);
 ERRCOD createGetListMsg(MYMSG* destMsg);
 ERRCOD createGetListOkMsg(MYMSG* destMsg, clientList& ServerClientList);
 
-
+int getArgNum(uint8_t);
 
 
 #endif // PROTOCOL_H_INCLUDED
