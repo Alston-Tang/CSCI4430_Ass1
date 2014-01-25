@@ -5,12 +5,12 @@
 		<Cursor position="0" topLine="0" />
 	</File>
 	<File name="protocol.cpp" open="1" top="0" tabpos="2">
-		<Cursor position="2938" topLine="103" />
+		<Cursor position="103" topLine="0" />
 	</File>
-	<File name="protocol.h" open="1" top="0" tabpos="4">
-		<Cursor position="1231" topLine="0" />
+	<File name="protocol.h" open="1" top="1" tabpos="4">
+		<Cursor position="221" topLine="42" />
 	</File>
-	<File name="server.cpp" open="1" top="1" tabpos="1">
-		<Cursor position="660" topLine="32" />
+	<File name="server.cpp" open="1" top="0" tabpos="1">
+		<Cursor position="619" topLine="59" />
 	</File>
 </CodeBlocks_layout_file>

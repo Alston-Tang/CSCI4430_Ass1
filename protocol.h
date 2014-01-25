@@ -24,6 +24,17 @@ uint32_t copy2msg(MYMSG* destMsg,uint32_t length,uint8_t content[],uint32_t msgP
 uint32_t copy2msg(MYMSG* destMsg,uint16_t content,uint32_t msgPos,bool hasLength);
 uint32_t copy2msg(MYMSG* destMsg,uint32_t content,uint32_t msgPos,bool hasLength);
 
+class msgReceiver
+{
+private:
+    uint8_t inBuf[LMSGL];
+    uint32_t inLength;
+    int conSocket;
+public:
+    msgReceiver(int conSocket);
+    ERRCOD receiveMsg(MYMSG* destMsg);
+};
+
 class userInf
 {
 public:

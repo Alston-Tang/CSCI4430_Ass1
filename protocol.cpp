@@ -194,3 +194,14 @@ userInf::userInf()
     next=NULL;
 }
 
+msgReceiver::msgReceiver(int conSo)
+{
+    inLength=0;
+    conSocket=conSo;
+}
+
+ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
+{
+
+}
+
