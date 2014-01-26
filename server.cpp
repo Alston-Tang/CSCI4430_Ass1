@@ -20,22 +20,49 @@ struct conInf
 
 clientList clList;
 
-void err(char const place[])
-{
-    perror(place);
-    exit(-1);
-}
-
-void err(char const place[],int code)
-{
-    printf("fatal error happens at %s, error code is %d",place,code);
-    exit(-1);
-}
-
 void* connection(void* in)
 {
-    struct conInf* inf=(struct conInf*) in;
-
+    int32_t ipAddr=(struct conInf*) in->conAddr->sin_addr.s_addr;
+    int conSocket=*((struct conInf*) in->conSocket)
+    int length=0;
+    ERRCOD rtVal;
+    MYMSG msg[LMSGL],sendMsg[LMSGL];
+    msgReceiver msgRec(*(inf->conSocket));
+    while(1)
+    {
+        msgRec.receiveMsg(msg);
+        switch (msg[0])
+        {
+            case LOGIN:
+                rtVal=clList.addUser(msg,inf->conAddr->sin_addr.s_addr);
+                switch (rtVal)
+                {
+                    case 0:
+                        length=createLoginOkMsg(sendMsg);
+                        write(conSocket,sendMsg,length);
+                        break;
+                    case SMNAME:
+                        length=createErrMsg(sendMsg,0x01);
+                        write(conSocket,sendMsg,length);
+                        break;
+                    case SMIPNPORT:
+                        length=createErrMsg(sendMsg,0x02);
+                        write(conSocket,sendMsg,length);
+                        break;
+                    case TOOMANYUSER:
+                        length=createErrMsg(sendMsg,0x03);
+                        write(conSocket,sendMsg,length);
+                        break;
+                }
+                break;
+            case GET_LIST:
+                length=clList.getList(sendMsg);
+                write(conSocket,sendMsg,length);
+                break;
+            default:
+                err("connection(): receive an unknown msg",MSGINCOR);
+        }
+    }
     return NULL;
 }
 

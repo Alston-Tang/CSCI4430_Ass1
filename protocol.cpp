@@ -3,6 +3,19 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+void err(char const place[])
+{
+    perror(place);
+    exit(-1);
+}
+
+void err(char const place[],int code)
+{
+    printf("fatal error happens at %s, error code is %d",place,code);
+    exit(-1);
+}
 
 uint32_t copy2msg(MYMSG* destMsg,uint32_t length,uint8_t content[],uint32_t msgPos)
 {
@@ -40,32 +53,47 @@ uint32_t copy2msg(MYMSG* destMsg,uint32_t content,uint32_t msgPos,bool hasLength
     return msgPos;
 }
 
-ERRCOD createLoginMsg(MYMSG* destMsg,char* userName, uint16_t portNum)
+uint32_t fetchFmsg(MYMSG* sourMsg,uint32_t* result,uint32_t msgPos)
+{
+    memcpy(&sourMsg[msgPos],result,4);
+    *result=ntohl(*result);
+    return msgPos+4;
+}
+uint32_t fetchFmsg(MYMSG* sourMsg,uint16_t* result,uint32_t msgPos)
+{
+    memcpy(&sourMsg[msgPos],result,2);
+    *result=ntohs(*result);
+    return msgPos+2;
+}
+
+int createLoginMsg(MYMSG* destMsg,char* userName, uint16_t portNum)
 {
     uint16_t posMsg=1;
     destMsg[0]=LOGIN;
     uint32_t length=strlen(userName);
     posMsg=copy2msg(destMsg,length,(uint8_t*)userName,posMsg);
     posMsg=copy2msg(destMsg,portNum,posMsg,true);
-    return 0;
+    return length+11;
 }
 
 
-ERRCOD createLoginOkMsg(MYMSG* destMsg)
+int createLoginOkMsg(MYMSG* destMsg)
 {
     destMsg[0]=LOGIN_OK;
-    return 0;
+    return 1;
 }
 
-ERRCOD createGetListMsg(MYMSG* destMsg)
+int createGetListMsg(MYMSG* destMsg)
 {
     destMsg[0]=GET_LIST;
-    return 0;
+    return 1;
 }
 
-ERRCOD createGetListOkMsg(MYMSG* destMsg, clientList& ServerClientList)
+int createErrMsg(MYMSG* destMsg,uint8_t errCode)
 {
-    return 0;
+    destMsg[0]=ERROR;
+    copy2msg(destMsg,1,&errCode,1);
+    return 6;
 }
 
 ERRCOD clientList::addUser(MYMSG* sourMsg, uint32_t ipAddr)
@@ -150,7 +178,7 @@ ERRCOD clientList::delUser(char delName[])
     else return NOSUCHUSER;
 }
 
-ERRCOD clientList::getList(MYMSG* destMsg)
+int clientList::getList(MYMSG* destMsg)
 {
     uint32_t msgPos=5;
     uint32_t totalByte=0;
@@ -166,7 +194,7 @@ ERRCOD clientList::getList(MYMSG* destMsg)
         cur=cur->next;
     }
     copy2msg(destMsg,totalByte,1,false);
-    return 0;
+    return totalByte+1;
 }
 
 clientList::clientList()
@@ -200,40 +228,59 @@ msgReceiver::msgReceiver(int conSo)
 
 ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
 {
-    bool finish=false,msgValid=false;
-    int msgType=-1,remArg=0,remByte=0,msgPos=0,count,bufPos=0;
+    bool msgValid=false;
+    int count,remArg=0,remByte=0;
+    uint32_t msgPos=0,bufPos=0;
     uint8_t msgBuf[LMSGL];
     if (inLength!=0)
     {
         memcpy(msgBuf,inBuf,inLength);
         count=inLength;
         inLength=0;
-        remArg=getArgNum(msgBuf[0]);
-        if (remArg==-1) err("getArgNum",-1);
-
-        destMsg[0]=msgBuf[0];
-        count--;
-        bufPos++;
-        msgPos++;
-
-        while(remArg>0 && count>0)
-        {
-
-
-        }
     }
-    while(!finish)
+    else
     {
-        count=read(conSocket,msgBfuf,LMSGL);
-        if (!msgValid)
+        count=read(conSocket,msgBuf,LMSGL);
+        if (count==-1) err("read() in msgReceiver()");
+        if (count>0)
         {
-
-        }
-        else
-        {
-
+            remArg=getArgNum(msgBuf[0]);
+            if (remArg==-1) err("msgReceiver",MSGINCOR);
+            destMsg[0]=msgBuf[0];
+            msgPos++; bufPos++; count--;
+            msgValid=true;
         }
     }
+    while((remArg>0 || remByte>0) && count>0)
+    {
+        if(remByte==0)
+        {
+            bufPos=fetchFmsg(msgBuf,(uint32_t*)&remByte,bufPos);
+            remArg--;
+        }
+        if(remByte!=0)
+        {
+            if(count>=remByte)
+            {
+                memcpy(&msgBuf[bufPos],&destMsg[msgPos],remByte);
+                count-=remByte;
+                msgPos+=remByte;
+                bufPos+=remByte;
+                remByte=0;
+            }
+            else
+            {
+                memcpy(&msgBuf[bufPos],&destMsg[msgPos],count);
+                remByte-=count;
+                msgPos+=count;
+                bufPos=0;
+                count=0;
+                count=read(conSocket,msgBuf,LMSGL);
+                if (count==-1) err("read() in msgReceiver()");
+            }
+        }
+    }
+    if (!msgValid) return MSGINCOR;
     return 0;
 }
 
