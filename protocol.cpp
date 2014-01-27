@@ -66,6 +66,28 @@ uint32_t fetchFmsg(MYMSG* sourMsg,uint16_t* result,uint32_t msgPos)
     return msgPos+2;
 }
 
+ERRCOD clientListParse(MYMSG* sourMsg, userInf* destStr, int* num)
+{
+    if (sourMsg[0]!=GET_LIST_OK) return MSGINCOR;
+    uint32_t length;
+    fetchFmsg(sourMsg,&length,1);
+    int count=0;
+    uint32_t msgPos=5;
+    while(length!=0)
+    {
+        uint32_t sLength,iniPos=msgPos;
+        msgPos=fetchFmsg(sourMsg,&sLength,msgPos);
+        memcpy(userInf[count].name,&sourMsg[msgPos],sLength);
+        msgPos+=sLength;
+        msgPos=fetchFmsg(sourMsg,&(userInf[count].ipAddr),msgPos);
+        msgPos=fetchFmsg(sourMsg,&(userInf[count].portNum),msgPos);
+        length-=(msgPos-iniPos);
+        count++;
+    }
+    *num=count;
+    return 0;
+}
+
 int createLoginMsg(MYMSG* destMsg,char* userName, uint16_t portNum)
 {
     uint16_t posMsg=1;
@@ -363,6 +385,7 @@ ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
     else
     {
         count=read(conSocket,msgBuf,LMSGL);
+        if (count==0) return DISCONNECT;
         if (count==-1) err("read() in msgReceiver()");
         if (count>0)
         {
@@ -398,7 +421,8 @@ ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
                 bufPos=0;
                 count=0;
                 count=read(conSocket,msgBuf,LMSGL);
-                if (count==-1) err("read() in msgReceiver()");
+                if (count==0) return DISCONNECT;
+                else if (count==-1) err("read() in msgReceiver()");
             }
         }
     }

@@ -9,6 +9,7 @@
 #define SMNAME -4
 #define NOSUCHUSER -5
 #define BUFTOOSM -6
+#define DISCONNECT -7
 
 #define MSGL 512
 #define LMSGL 5120
@@ -36,6 +37,8 @@ uint32_t copy2msg(MYMSG* destMsg,uint16_t content,uint32_t msgPos,bool hasLength
 uint32_t copy2msg(MYMSG* destMsg,uint32_t content,uint32_t msgPos,bool hasLength);
 uint32_t fetchFmsg(MYMSG* sourMsg,uint32_t* result,uint32_t msgPos);
 uint32_t fetchFmsg(MYMSG* sourMsg,uint16_t* result,uint32_t msgPos);
+
+ERRCOD clientListParse(MYMSG* sourMsg, userInf* destStr, int* num);
 
 class socketBuffer
 {
