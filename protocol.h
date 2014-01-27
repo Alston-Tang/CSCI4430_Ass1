@@ -8,6 +8,7 @@
 #define SMIPNPORT -3
 #define SMNAME -4
 #define NOSUCHUSER -5
+#define BUFTOOSM -6
 
 #define MSGL 512
 #define LMSGL 5120
@@ -19,7 +20,14 @@
 #define LOGIN_OK 0x02
 #define GET_LIST 0x03
 #define GET_LIST_OK 0x04
+#define HELLO 0x10
+#define HELLO_OK 0x20
+#define MSG 0x30
 #define ERROR 0xff
+
+#define BUFMAX 100
+
+#define MAXUSER 10
 
 void err(char const place[]);
 void err(char const place[],int code);
@@ -28,6 +36,18 @@ uint32_t copy2msg(MYMSG* destMsg,uint16_t content,uint32_t msgPos,bool hasLength
 uint32_t copy2msg(MYMSG* destMsg,uint32_t content,uint32_t msgPos,bool hasLength);
 uint32_t fetchFmsg(MYMSG* sourMsg,uint32_t* result,uint32_t msgPos);
 uint32_t fetchFmsg(MYMSG* sourMsg,uint16_t* result,uint32_t msgPos);
+
+class socketBuffer
+{
+private:
+    int conNum;
+    char name[MAXUSER][512];
+    int socketFd[MAXUSER];
+public:
+    socketBuffer();
+    int getSocket(char* requireName);
+    ERRCOD updateSocket(char* userName, int fd);
+};
 
 class msgReceiver
 {
@@ -52,6 +72,16 @@ public:
     userInf();
 };
 
+class recMsg
+{
+public:
+    char msgContent[512];
+    char fromName[512];
+    recMsg* next;
+
+    recMsg();
+};
+
 class clientList
 {
 private:
@@ -66,10 +96,26 @@ public:
     ~clientList();
 };
 
+class recMsgBuf
+{
+private:
+    uint32_t unreadNum;
+    recMsg* start;
+public:
+    recMsgBuf();
+    ~recMsgBuf();
+    ERRCOD addMsg(MYMSG* sourMsg,char name[]);
+    int getAllMsg(recMsg* destArr);
+    ERRCOD delAllMsg();
+};
+
 int createLoginMsg(MYMSG* destMsg,char* userName, uint16_t portNum);
 int createLoginOkMsg(MYMSG* destMsg);
 int createGetListMsg(MYMSG* destMsg);
 int createErrMsg(MYMSG* destMsg,uint8_t errCode);
+int createHelloMsg(MYMSG* destMsg,char* sName);
+int createHelloOkMsg(MYMSG* destMsg);
+int createMsg(MYMSG* destMsg, char* msgContent);
 
 int getArgNum(uint8_t);
 

@@ -1,3 +1,4 @@
+/*
 #define SERVERPORT 12339
 
 #include <stdio.h>
@@ -22,19 +23,19 @@ clientList clList;
 
 void* connection(void* in)
 {
-    int32_t ipAddr=(struct conInf*) in->conAddr->sin_addr.s_addr;
-    int conSocket=*((struct conInf*) in->conSocket)
+    int32_t ipAddr=((struct conInf*)in)->conAddr->sin_addr.s_addr;
+    int conSocket=*(((struct conInf*) in)->conSocket);
     int length=0;
     ERRCOD rtVal;
     MYMSG msg[LMSGL],sendMsg[LMSGL];
-    msgReceiver msgRec(*(inf->conSocket));
+    msgReceiver msgRec(conSocket);
     while(1)
     {
         msgRec.receiveMsg(msg);
         switch (msg[0])
         {
             case LOGIN:
-                rtVal=clList.addUser(msg,inf->conAddr->sin_addr.s_addr);
+                rtVal=clList.addUser(msg,ipAddr);
                 switch (rtVal)
                 {
                     case 0:
@@ -68,7 +69,6 @@ void* connection(void* in)
 
 int main(void)
 {
-
     int listenSocket,rtValue;
     struct sockaddr_in addr;
 
@@ -105,3 +105,4 @@ int main(void)
     }
     return 0;
 }
+*/

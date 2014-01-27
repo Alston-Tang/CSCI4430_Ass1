@@ -55,13 +55,13 @@ uint32_t copy2msg(MYMSG* destMsg,uint32_t content,uint32_t msgPos,bool hasLength
 
 uint32_t fetchFmsg(MYMSG* sourMsg,uint32_t* result,uint32_t msgPos)
 {
-    memcpy(&sourMsg[msgPos],result,4);
+    memcpy(result,&sourMsg[msgPos],4);
     *result=ntohl(*result);
     return msgPos+4;
 }
 uint32_t fetchFmsg(MYMSG* sourMsg,uint16_t* result,uint32_t msgPos)
 {
-    memcpy(&sourMsg[msgPos],result,2);
+    memcpy(result,&sourMsg[msgPos],2);
     *result=ntohs(*result);
     return msgPos+2;
 }
@@ -94,6 +94,46 @@ int createErrMsg(MYMSG* destMsg,uint8_t errCode)
     destMsg[0]=ERROR;
     copy2msg(destMsg,1,&errCode,1);
     return 6;
+}
+
+int createHelloMsg(MYMSG* destMsg,char* sName)
+{
+    destMsg[0]=HELLO;
+    int length=strlen(sName);
+    copy2msg(destMsg,length,(uint8_t*)sName,1);
+    return length+5;
+}
+int createHelloOkMsg(MYMSG* destMsg)
+{
+    destMsg[0]=HELLO_OK;
+    return 1;
+}
+int createMsg(MYMSG* destMsg, char* msgContent)
+{
+    destMsg[0]=MSG;
+    int length=strlen(msgContent);
+    copy2msg(destMsg,length,(uint8_t*)msgContent,1);
+    return length+5;
+}
+socketBuffer::socketBuffer()
+{
+    conNum=0;
+}
+int socketBuffer::getSocket(char* requireName)
+{
+    for(int i=0; i<conNum; i++)
+    {
+        if(strcmp(requireName,name[i])==0) return socketFd[i];
+    }
+    return -1;
+}
+ERRCOD socketBuffer::updateSocket(char* userName, int fd)
+{
+    if (conNum>10) return TOOMANYUSER;
+    strcpy(name[conNum],userName);
+    socketFd[conNum]=fd;
+    conNum++;
+    return 0;
 }
 
 ERRCOD clientList::addUser(MYMSG* sourMsg, uint32_t ipAddr)
@@ -220,6 +260,88 @@ userInf::userInf()
     next=NULL;
 }
 
+recMsg::recMsg()
+{
+    next=NULL;
+}
+
+recMsgBuf::recMsgBuf()
+{
+    unreadNum=0;
+    start=NULL;
+}
+
+recMsgBuf::~recMsgBuf()
+{
+    recMsg* cur=start;
+    recMsg* last=NULL;
+    while(cur!=NULL)
+    {
+        last=cur;
+        cur=cur->next;
+        delete(last);
+    }
+}
+
+ERRCOD recMsgBuf::addMsg(MYMSG* sourMsg,char name[])
+{
+    if(sourMsg[0]!=MSG) return MSGINCOR;
+    recMsg* curMsg=new recMsg();
+
+    strcpy(curMsg->fromName,name);
+    uint32_t length;
+    fetchFmsg(sourMsg,&length,1);
+    memcpy(curMsg->msgContent,&sourMsg[5],length);
+    curMsg->msgContent[length]=0;
+
+    if (start==NULL)
+    {
+        start=curMsg;
+        unreadNum++;
+        return 0;
+    }
+    recMsg* cur=start;
+    recMsg* last=NULL;
+    while(cur!=NULL)
+    {
+        last=cur;
+        cur=cur->next;
+    }
+    last->next=curMsg;
+    unreadNum++;
+    return 0;
+}
+
+int recMsgBuf::getAllMsg(recMsg* destArr)
+{
+    if (unreadNum>BUFMAX) return BUFTOOSM;
+    recMsg* cur=start;
+    int count=0;
+    while(cur!=NULL)
+    {
+        strcpy(destArr[count].msgContent,cur->msgContent);
+        strcpy(destArr[count].fromName,cur->fromName);
+        cur=cur->next;
+        count++;
+    }
+    return unreadNum;
+}
+
+ERRCOD recMsgBuf::delAllMsg()
+{
+    recMsg* cur=start;
+    recMsg* last=NULL;
+    while(cur!=NULL)
+    {
+        last=cur;
+        cur=cur->next;
+        delete last;
+    }
+    start=NULL;
+    unreadNum=0;
+    return 0;
+}
+
 msgReceiver::msgReceiver(int conSo)
 {
     inLength=0;
@@ -299,4 +421,3 @@ int getArgNum(uint8_t msgType)
         default: return -1;
     }
 }
-
