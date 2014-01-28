@@ -77,10 +77,10 @@ ERRCOD clientListParse(MYMSG* sourMsg, userInf* destStr, int* num)
     {
         uint32_t sLength,iniPos=msgPos;
         msgPos=fetchFmsg(sourMsg,&sLength,msgPos);
-        memcpy(userInf[count].name,&sourMsg[msgPos],sLength);
+        memcpy(destStr[count].name,&sourMsg[msgPos],sLength);
         msgPos+=sLength;
-        msgPos=fetchFmsg(sourMsg,&(userInf[count].ipAddr),msgPos);
-        msgPos=fetchFmsg(sourMsg,&(userInf[count].portNum),msgPos);
+        msgPos=fetchFmsg(sourMsg,&(destStr[count].ipAddr),msgPos);
+        msgPos=fetchFmsg(sourMsg,&(destStr[count].portNum),msgPos);
         length-=(msgPos-iniPos);
         count++;
     }

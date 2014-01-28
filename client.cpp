@@ -6,8 +6,11 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include "protocol.h"
+
+#define SERVERPORT 12339
 
 struct conInf
 {
@@ -15,7 +18,9 @@ struct conInf
     struct sockaddr_in* conAddr;
 };
 
+int serverSocket;
 recMsgBuf buf;
+socketBuffer soBuf;
 
 void* threadTypeA(void* in)
 {
@@ -26,23 +31,48 @@ void* threadTypeB(void* in)
 {
     int conSocket=*(((conInf*)in)->conSocket);
 
-    msgReceiver msgRec(conSocket);
+    msgReceiver msgRecSer(serverSocket);
+    msgReceiver msgRecCli(conSocket);
     MYMSG msg[LMSGL];
 
     while(1)
     {
-        msgRec.receiveMsg(msg);
+        msgRecCli.receiveMsg(msg);
         switch (msg[0])
         {
         case HELLO:
             char screenName[512];
             uint32_t length=fetchFmsg(msg,&length,1);
+            int num;
+            userInf uInf[MAXUSER];
+
             memcpy(screenName,&msg[5],length);
+            screenName[length]=0;
+
             MYMSG sMsg[MSGL];
             length=createGetListMsg(sMsg);
-            write(conSocket,sMsg,length);
-            msgRec.receiveMsg(msg);
-
+            write(serverSocket,sMsg,length);
+            msgRecSer.receiveMsg(msg);
+            clientListParse(msg,uInf,&num);
+            bool find=false;
+            for(int i=0; i<num; i++)
+            {
+                if (strcmp(screenName,uInf[i].name)==0)
+                {
+                    find=true;
+                    break;
+                }
+            }
+            if (find)
+            {
+                length=createHelloOkMsg(sMsg);
+                write(conSocket,sMsg,length);
+            }
+            else
+            {
+                length=createErrMsg(sMsg,0x04);
+                write(conSocket,sMsg,length);
+            }
             break;
         }
     }
@@ -88,6 +118,26 @@ void* listenThread(void* in)
 
 int main(void)
 {
+    char ipAddr[20],scrName[512];
+    printf("IP Address:");
+    scanf("%s",ipAddr);
+    printf("Screen Name:");
+    scanf("%s",scrName);
+
+    struct in_addr ip;
+    if(inet_aton(ipAddr,&ip)==0) err("inet_aton",0);
+
+    serverSocket=socket(AF_INET,SOCK_STREAM,0);
+    if(serverSocket==-1) err("socket() in main");
+
+    struct sockaddr_in serverAddr;
+    memset(&serverAddr,sizeof(struct sockaddr_in),0);
+    serverAddr.sin_family=AF_INET;
+    serverAddr.sin_addr.s_addr=ip.s_addr;
+    serverAddr.sin_port=htons(SERVERPORT);
+    uint32_t addrLen=sizeof(struct sockaddr_in);
+    if(connect(serverSocket,(struct sockaddr*)&serverAddr,addrLen)==-1) err("connect() in main");
+
     srand(time(NULL));
     uint16_t portNum=rand()%16410+49125;
 

@@ -38,7 +38,7 @@ uint32_t copy2msg(MYMSG* destMsg,uint32_t content,uint32_t msgPos,bool hasLength
 uint32_t fetchFmsg(MYMSG* sourMsg,uint32_t* result,uint32_t msgPos);
 uint32_t fetchFmsg(MYMSG* sourMsg,uint16_t* result,uint32_t msgPos);
 
-ERRCOD clientListParse(MYMSG* sourMsg, userInf* destStr, int* num);
+
 
 class socketBuffer
 {
@@ -50,6 +50,7 @@ public:
     socketBuffer();
     int getSocket(char* requireName);
     ERRCOD updateSocket(char* userName, int fd);
+    ERRCOD delSocket(char* userName);
 };
 
 class msgReceiver
@@ -111,6 +112,8 @@ public:
     int getAllMsg(recMsg* destArr);
     ERRCOD delAllMsg();
 };
+
+ERRCOD clientListParse(MYMSG* sourMsg, userInf* destStr, int* num);
 
 int createLoginMsg(MYMSG* destMsg,char* userName, uint16_t portNum);
 int createLoginOkMsg(MYMSG* destMsg);
