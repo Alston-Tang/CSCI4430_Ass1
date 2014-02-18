@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1390925458 source:/home/alston/CSCI4430_Ass1/client.cpp
+1392744977 source:/home/alston/CSCI4430_Ass1/client.cpp
 	<stdio.h>
 	<pthread.h>
 	<stdlib.h>
@@ -11,8 +11,17 @@
 	<arpa/inet.h>
 	<string.h>
 	"protocol.h"
+	"ui.h"
+	"client.h"
+	"debug.h"
 
-1390884007 source:/home/alston/CSCI4430_Ass1/protocol.cpp
+1392755027 /home/alston/CSCI4430_Ass1/protocol.h
+	<stdint.h>
+	<netinet/in.h>
+	<pthread.h>
+
+1392754913 source:/home/alston/CSCI4430_Ass1/protocol.cpp
+	"debug.h"
 	"protocol.h"
 	<stdio.h>
 	<arpa/inet.h>
@@ -20,7 +29,7 @@
 	<stdlib.h>
 	<unistd.h>
 
-1390883596 source:/home/alston/CSCI4430_Ass1/server.cpp
+1390838040 source:/home/alston/CSCI4430_Ass1/server.cpp
 	<stdio.h>
 	<netinet/in.h>
 	<sys/types.h>
@@ -33,6 +42,38 @@
 	<unistd.h>
 	"protocol.h"
 
-1390883943 /home/alston/CSCI4430_Ass1/protocol.h
-	<stdint.h>
+1392483976 /home/alston/CSCI4430_Ass1/debug.h
+	"protocol.h"
+
+1392743636 source:/home/alston/CSCI4430_Ass1/debug.cpp
+	"debug.h"
+	<stdio.h>
+
+1392754368 source:/home/alston/CSCI4430_Ass1/ui.cpp
+	<stdio.h>
+	<unistd.h>
+	<string.h>
+	<stdlib.h>
+	<pthread.h>
+	"ui.h"
+	"client.h"
+	"debug.h"
+
+1392396749 /home/alston/CSCI4430_Ass1/ui.h
+	"protocol.h"
+
+1392742770 /home/alston/CSCI4430_Ass1/client.h
+	<stdio.h>
+	<pthread.h>
+	<stdlib.h>
+	<unistd.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<time.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<string.h>
+	"protocol.h"
+	"ui.h"
+	"debug.h"
 

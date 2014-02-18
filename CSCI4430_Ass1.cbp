@@ -33,9 +33,14 @@
 			<Add option="-Wall" />
 		</Compiler>
 		<Unit filename="client.cpp" />
+		<Unit filename="client.h" />
+		<Unit filename="debug.cpp" />
+		<Unit filename="debug.h" />
 		<Unit filename="protocol.cpp" />
 		<Unit filename="protocol.h" />
 		<Unit filename="server.cpp" />
+		<Unit filename="ui.cpp" />
+		<Unit filename="ui.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />

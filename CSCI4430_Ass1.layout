@@ -2,15 +2,30 @@
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Debug" />
 	<File name="client.cpp" open="1" top="0" tabpos="3">
-		<Cursor position="952" topLine="39" />
+		<Cursor position="5676" topLine="199" />
 	</File>
-	<File name="protocol.cpp" open="1" top="0" tabpos="2">
-		<Cursor position="3266" topLine="129" />
+	<File name="client.h" open="1" top="0" tabpos="6">
+		<Cursor position="302" topLine="3" />
 	</File>
-	<File name="protocol.h" open="1" top="1" tabpos="4">
-		<Cursor position="1228" topLine="35" />
+	<File name="debug.cpp" open="1" top="0" tabpos="7">
+		<Cursor position="624" topLine="2" />
 	</File>
-	<File name="server.cpp" open="1" top="0" tabpos="1">
-		<Cursor position="134" topLine="6" />
+	<File name="debug.h" open="1" top="0" tabpos="8">
+		<Cursor position="213" topLine="0" />
+	</File>
+	<File name="protocol.cpp" open="1" top="0" tabpos="1">
+		<Cursor position="0" topLine="501" />
+	</File>
+	<File name="protocol.h" open="1" top="0" tabpos="5">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="server.cpp" open="0" top="0" tabpos="3">
+		<Cursor position="160" topLine="6" />
+	</File>
+	<File name="ui.cpp" open="1" top="0" tabpos="2">
+		<Cursor position="7300" topLine="219" />
+	</File>
+	<File name="ui.h" open="1" top="0" tabpos="4">
+		<Cursor position="0" topLine="0" />
 	</File>
 </CodeBlocks_layout_file>

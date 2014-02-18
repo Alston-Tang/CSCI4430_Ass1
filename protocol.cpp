@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "protocol.h"
 #include <stdio.h>
 #include <arpa/inet.h>
@@ -77,6 +78,7 @@ ERRCOD clientListParse(MYMSG* sourMsg, userInf* destStr, int* num)
     {
         uint32_t sLength,iniPos=msgPos;
         msgPos=fetchFmsg(sourMsg,&sLength,msgPos);
+        destStr[count].nameLength=sLength;
         memcpy(destStr[count].name,&sourMsg[msgPos],sLength);
         msgPos+=sLength;
         msgPos=fetchFmsg(sourMsg,&(destStr[count].ipAddr),msgPos);
@@ -137,28 +139,8 @@ int createMsg(MYMSG* destMsg, char* msgContent)
     copy2msg(destMsg,length,(uint8_t*)msgContent,1);
     return length+5;
 }
-socketBuffer::socketBuffer()
-{
-    conNum=0;
-}
-int socketBuffer::getSocket(char* requireName)
-{
-    for(int i=0; i<conNum; i++)
-    {
-        if(strcmp(requireName,name[i])==0) return socketFd[i];
-    }
-    return -1;
-}
-ERRCOD socketBuffer::updateSocket(char* userName, int fd)
-{
-    if (conNum>10) return TOOMANYUSER;
-    strcpy(name[conNum],userName);
-    socketFd[conNum]=fd;
-    conNum++;
-    return 0;
-}
 
-ERRCOD clientList::addUser(MYMSG* sourMsg, uint32_t ipAddr)
+ERRCOD clientList::addUser(MYMSG* sourMsg, uint32_t ipAddr, userInf** thisUser)
 {
     if (sourMsg[0]!=LOGIN) return MSGINCOR;
     if (userNum>=10) return TOOMANYUSER;
@@ -204,6 +186,7 @@ ERRCOD clientList::addUser(MYMSG* sourMsg, uint32_t ipAddr)
         last->next=newUser;
     }
     userNum++;
+    *thisUser=newUser;
     return 0;
 }
 
@@ -256,7 +239,7 @@ int clientList::getList(MYMSG* destMsg)
         cur=cur->next;
     }
     copy2msg(destMsg,totalByte,1,false);
-    return totalByte+1;
+    return totalByte+5;
 }
 
 clientList::clientList()
@@ -267,6 +250,9 @@ clientList::clientList()
 
 clientList::~clientList()
 {
+    #ifdef DEBUG
+        printf("clientList destroyed\n");
+    #endif
     userInf* cur=start;
     userInf* last=NULL;
     while(cur!=NULL)
@@ -295,6 +281,9 @@ recMsgBuf::recMsgBuf()
 
 recMsgBuf::~recMsgBuf()
 {
+    #ifdef DEBUG
+        printf("recMsgBuf destroyed\n");
+    #endif
     recMsg* cur=start;
     recMsg* last=NULL;
     while(cur!=NULL)
@@ -364,10 +353,250 @@ ERRCOD recMsgBuf::delAllMsg()
     return 0;
 }
 
+restMsgBuf::restMsgBuf()
+{
+    next=NULL;
+    msgLength=-1;
+}
+
+restMsgBuf::restMsgBuf(MYMSG* sourMsg, uint32_t length)
+{
+    next=NULL;
+    memcpy(content,sourMsg,length);
+    msgLength=length;
+}
+
+void restMsgBuf::insert(MYMSG* sourMsg, uint32_t length)
+{
+    restMsgBuf* cur=this;
+    while(cur->next!=NULL) cur=cur->next;
+    cur->next=new restMsgBuf(sourMsg,length);
+}
+
+ERRCOD restMsgBuf::get(MYMSG* destMsg,uint32_t* length)
+{
+    restMsgBuf* cur=this;
+    while(cur->next!=NULL) cur=cur->next;
+    if(cur->msgLength<0) return NOTFIND;
+    else
+    {
+        *length=cur->msgLength;
+        memcpy(destMsg,content,*length);
+        return 0;
+    }
+}
+
+ERRCOD restMsgBuf::getTypeA(MYMSG* destMsg,uint32_t* length)
+{
+    restMsgBuf* cur=this;
+    while(cur->next!=NULL)
+    {
+        if (getMsgType(cur->next->content)==TYPEA)
+        {
+            *length=cur->next->msgLength;
+            memcpy(destMsg,cur->next->content,*length);
+            restMsgBuf* temp=cur->next;
+            cur->next=cur->next->next;
+            delete temp;
+            return 0;
+        }
+        cur=cur->next;
+    }
+    return NOTFIND;
+}
+
+ERRCOD restMsgBuf::getTypeB(MYMSG* destMsg,uint32_t* length)
+{
+    restMsgBuf* cur=this;
+    while(cur->next!=NULL)
+    {
+        if (getMsgType(cur->next->content)==TYPEB)
+        {
+            *length=cur->next->msgLength;
+            memcpy(destMsg,cur->next->content,*length);
+            restMsgBuf* temp=cur->next;
+            cur->next=cur->next->next;
+            delete temp;
+            return 0;
+        }
+        cur=cur->next;
+    }
+    return NOTFIND;
+}
+
 msgReceiver::msgReceiver(int conSo)
 {
     inLength=0;
     conSocket=conSo;
+    rStart=new restMsgBuf;
+    pthread_mutex_init(&mutex,NULL);
+    pthread_cond_init(&cond,NULL);
+}
+
+msgReceiver::~msgReceiver()
+{
+    #ifdef DEBUG
+        printf("msgReceiver destroyed\n");
+    #endif
+    restMsgBuf* cur=rStart;
+    restMsgBuf* temp=NULL;
+    while(cur!=NULL)
+    {
+        temp=cur;
+        cur=cur->next;
+        delete temp;
+    }
+}
+ERRCOD msgReceiver::receiveTypeAMsg(MYMSG* destMsg, uint32_t* msgLength)
+{
+    pthread_mutex_lock(&mutex);
+    while(rStart->getTypeA(destMsg,msgLength)==NOTFIND)
+    {
+        pthread_cond_wait(&cond,&mutex);
+    }
+    pthread_mutex_unlock(&mutex);
+    return 0;
+}
+/*
+ERRCOD msgReceiver::receiveTypeAMsg(MYMSG* destMsg, uint32_t* msgLength)
+{
+    #ifdef DEBUG
+        printf("[receiverA] receive type a message\n");
+    #endif
+    pthread_mutex_lock(&mutex);
+    #ifdef DEBUG
+        printf("[receiverA] in lock area\n");
+    #endif
+    if(rStart->getTypeA(destMsg,msgLength)!=NOTFIND) return 0;
+    #ifdef DEBUG
+        printf("[receiverA] not find in buffer\n");
+    #endif
+
+    if(receiveMsg(destMsg,msgLength)==DISCONNECT)
+    {
+        pthread_mutex_unlock(&mutex);
+        #ifdef DEBUG
+            printf("[receiverA] out of lock area\n");
+        #endif
+        return DISCONNECT;
+    }
+    while(getMsgType(destMsg)!=TYPEA)
+    {
+        rStart->insert(destMsg,*msgLength);
+        receiveMsg(destMsg,msgLength);
+    }
+    pthread_mutex_unlock(&mutex);
+    #ifdef DEBUG
+        printf("[receiverA] out of lock area\n");
+    #endif
+    return 0;
+}*/
+
+ERRCOD msgReceiver::receiveTypeBMsg(MYMSG* destMsg, uint32_t* msgLength)
+{
+    #ifdef DEBUG
+        printf("[receiverB] receive type B message\n");
+    #endif
+    if(rStart->getTypeB(destMsg,msgLength)!=NOTFIND) return 0;
+    #ifdef DEBUG
+        printf("[receiverB] not find in buffer\n");
+    #endif
+    if(receiveMsg(destMsg,msgLength)==DISCONNECT)
+    {
+        return DISCONNECT;
+    }
+    while(getMsgType(destMsg)!=TYPEB)
+    {
+        pthread_mutex_lock(&mutex);
+        rStart->insert(destMsg,*msgLength);
+        pthread_mutex_unlock(&mutex);
+        pthread_cond_signal(&cond);
+        receiveMsg(destMsg,msgLength);
+    }
+    return 0;
+}
+
+ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg,uint32_t* msgLength)
+{
+    bool msgValid=false;
+    int count,remArg=0,remByte=0;
+    uint32_t msgPos=0,bufPos=0;
+    uint8_t msgBuf[LMSGL];
+    (*msgLength)=0;
+    if (inLength!=0)
+    {
+        memcpy(msgBuf,inBuf,inLength);
+        count=inLength;
+        (*msgLength)+=inLength;
+        inLength=0;
+    }
+    else
+    {
+        count=read(conSocket,msgBuf,LMSGL);
+        if (count==0) return DISCONNECT;
+        if (count==-1) err("read() in msgReceiver()");
+        if (count>0)
+        {
+            remArg=getArgNum(msgBuf[0]);
+            if (remArg==-1) err("msgReceiver",MSGINCOR);
+            destMsg[0]=msgBuf[0];
+            msgPos++; bufPos++; count--; (*msgLength)++;
+            msgValid=true;
+        }
+    }
+    while(remArg>0 || remByte>0)
+    {
+        if(remByte==0)
+        {
+            if(count>=4)
+            {
+                uint32_t remByte_n;
+                memcpy(&remByte_n,&msgBuf[bufPos],4);
+                remByte=ntohl(remByte_n);
+                memcpy(&destMsg[msgPos],&remByte_n,4);
+                bufPos+=4; msgPos+=4; count-=4;
+                (*msgLength)+=4;
+                remArg--;
+            }
+            else
+            {
+                int rem=count;
+                count=read(conSocket,&msgBuf[bufPos+rem],LMSGL-bufPos-rem);
+                if(count==0) return DISCONNECT;
+                else if (count==-1) err("read() in msgReceiver()");
+                count+=rem;
+            }
+        }
+        if(remByte!=0)
+        {
+            if(count>=remByte)
+            {
+                memcpy(&destMsg[msgPos],&msgBuf[bufPos],remByte);
+                count-=remByte;
+                msgPos+=remByte;
+                bufPos+=remByte;
+                (*msgLength)+=remByte;
+                remByte=0;
+            }
+            else
+            {
+                memcpy(&destMsg[msgPos],&msgBuf[bufPos],count);
+                remByte-=count;
+                msgPos+=count;
+                (*msgLength)+=count;
+                bufPos=0;
+                count=0;
+                count=read(conSocket,msgBuf,LMSGL);
+                if (count==0) return DISCONNECT;
+                else if (count==-1) err("read() in msgReceiver()");
+            }
+        }
+    }
+    printf("[receive msg] receive a message:\n");
+    char temp[20]="temp";
+    printMsg(temp,destMsg,*msgLength);
+    if (!msgValid) return MSGINCOR;
+    return 0;
 }
 
 ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
@@ -407,7 +636,7 @@ ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
         {
             if(count>=remByte)
             {
-                memcpy(&msgBuf[bufPos],&destMsg[msgPos],remByte);
+                memcpy(&destMsg[msgPos],&msgBuf[bufPos],remByte);
                 count-=remByte;
                 msgPos+=remByte;
                 bufPos+=remByte;
@@ -415,7 +644,7 @@ ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
             }
             else
             {
-                memcpy(&msgBuf[bufPos],&destMsg[msgPos],count);
+                memcpy(&destMsg[msgPos],&msgBuf[bufPos],count);
                 remByte-=count;
                 msgPos+=count;
                 bufPos=0;
@@ -428,6 +657,230 @@ ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg)
     }
     if (!msgValid) return MSGINCOR;
     return 0;
+}
+
+
+clientConnected::clientConnected()
+{
+    next=NULL;
+    connected=false;
+    rec=NULL;
+}
+
+clientConnectedList::clientConnectedList()
+{
+    start=NULL;
+}
+
+clientConnectedList::~clientConnectedList()
+{
+    #ifdef DEBUG
+        printf("clientConnectedList destroyed\n");
+    #endif
+    clientConnected* cur=start;
+    clientConnected* temp=NULL;
+    while(cur!=NULL)
+    {
+        temp=cur;
+        cur=cur->next;
+        delete temp;
+    }
+}
+
+ERRCOD clientConnectedList::makeConnection(char* screenName)
+{
+    if (connectionStatus(screenName)!=DIS) return CONNECTED;
+    clientConnected* curUser=new clientConnected();
+    strcpy(curUser->name,screenName);
+    curUser->connected=false;
+
+    clientConnected* cur=start;
+    clientConnected* temp=NULL;
+
+    if (start==NULL) start=curUser;
+    else while(cur!=NULL)
+    {
+        temp=cur;
+        cur=cur->next;
+    }
+    temp->next=curUser;
+    return 0;
+}
+
+ERRCOD clientConnectedList::connectWith(char* screenName,int socket,msgReceiver** receiver)
+{
+    int existSocket;
+    msgReceiver* existRec;
+    if (connectionStatus(screenName,&existSocket,&existRec)!=DIS)
+    {
+        if (existSocket==socket)
+        {
+            if(*receiver!=existRec)
+            {
+                delete *receiver;
+                *receiver=existRec;
+                return CONNECTED;
+            }
+        }
+        else return TOOMANYCONNECTION;
+    }
+    clientConnected* curUser=new clientConnected();
+    strcpy(curUser->name,screenName);
+    curUser->connected=true;
+    curUser->socketFd=socket;
+    curUser->rec=*receiver;
+
+    clientConnected* cur=start;
+    clientConnected* temp=NULL;
+
+    if (start==NULL) start=curUser;
+    else
+    {
+        while(cur!=NULL)
+        {
+            temp=cur;
+            cur=cur->next;
+        }
+        temp->next=curUser;
+    }
+    return 0;
+}
+
+ERRCOD clientConnectedList::disconnectWith(char* screenName)
+{
+    if(connectionStatus(screenName)==DIS) return NOSUCHUSER;
+
+    clientConnected* cur=start;
+    clientConnected* temp=NULL;
+
+    if(strcmp(start->name,screenName)==0) start=start->next;
+    else while(cur!=NULL)
+    {
+        if(strcmp(cur->name,screenName)==0)
+        {
+            temp->next=cur->next;
+            delete cur;
+            break;
+        }
+    }
+    return 0;
+}
+
+int clientConnectedList::connectionStatus(char* screenName)
+{
+    clientConnected* cur=start;
+    while(cur!=NULL)
+    {
+        if (strcmp(cur->name,screenName)==0)
+        {
+            if (cur->connected) return CONNECTED;
+            else return CONNECTING;
+        }
+    }
+    return DIS;
+}
+
+int clientConnectedList::connectionStatus(char* screenName,int* destSocket,msgReceiver** receiver)
+{
+    clientConnected* cur=start;
+    while(cur!=NULL)
+    {
+        if (strcmp(cur->name,screenName)==0)
+        {
+            if (cur->connected)
+            {
+                *destSocket=cur->socketFd;
+                *receiver=cur->rec;
+                return CONNECTED;
+            }
+            else return CONNECTING;
+        }
+    }
+    return DIS;
+}
+
+sendMsg::sendMsg()
+{
+    next=NULL;
+}
+
+ERRCOD sendMsgBuf::insertMsg(char* sourStr)
+{
+    sendMsg* thisMsg=new sendMsg();
+
+    uint32_t length=strlen(sourStr);
+    thisMsg->msgLength=length;
+    strcpy(thisMsg->content,sourStr);
+
+    if (start==NULL) start=thisMsg;
+    else
+    {
+        sendMsg* cur=start;
+        sendMsg* temp=NULL;
+        while(cur!=NULL)
+        {
+            temp=cur;
+            cur=cur->next;
+        }
+        temp->next=thisMsg;
+    }
+    return 0;
+}
+
+ERRCOD sendMsgBuf::cutMsg(MYMSG* destMsg,uint32_t *length)
+{
+    if (start==NULL) return EMPTY;
+
+    sendMsg* cur=start;
+    start=start->next;
+
+    destMsg[0]=MSG;
+    copy2msg(destMsg,cur->msgLength,(uint8_t*)cur->content,1);
+    *length=cur->msgLength+5;
+
+    delete cur;
+    return 0;
+}
+
+
+void sendMsgBuf::thdStart()
+{
+    terminate=false;
+}
+void sendMsgBuf::thdFinish()
+{
+    terminate=true;
+}
+
+bool sendMsgBuf::isTerminate()
+{
+    return(terminate);
+}
+
+bool sendMsgBuf::isEmpty()
+{
+    if (start==NULL) return true;
+    else return false;
+}
+
+sendMsgBuf::sendMsgBuf()
+{
+    start=NULL;
+    terminate=true;
+}
+sendMsgBuf::~sendMsgBuf()
+{
+    #ifdef DEBUG
+        printf("sendMsgBuf destroyed\n");
+    #endif
+    sendMsg* cur=start;
+    sendMsg* temp=NULL;
+    while(cur!=NULL)
+    {
+        temp=cur;
+        cur=cur->next;
+        delete temp;
+    }
 }
 
 int getArgNum(uint8_t msgType)
@@ -445,3 +898,25 @@ int getArgNum(uint8_t msgType)
         default: return -1;
     }
 }
+
+MSGTYPE getMsgType(MYMSG* msg)
+{
+    if(msg[0]==0x02 || msg[0]==0x04 || msg[0]==0x10 || msg[0]==0x30) return TYPEB;
+    if(msg[0]==0x20) return TYPEA;
+    else return UNKNOWN;
+}
+
+#ifdef DEBUG
+
+void restMsgBuf::print()
+{
+    restMsgBuf* cur=next;
+    while(cur!=NULL)
+    {
+        for(int i=0; i<next->msgLength; i++) printf("%d",next->content[i]);
+        printf("\n");
+    }
+}
+#endif
+
+
