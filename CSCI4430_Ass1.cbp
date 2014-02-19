@@ -38,7 +38,6 @@
 		<Unit filename="debug.h" />
 		<Unit filename="protocol.cpp" />
 		<Unit filename="protocol.h" />
-		<Unit filename="server.cpp" />
 		<Unit filename="ui.cpp" />
 		<Unit filename="ui.h" />
 		<Extensions>

@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_H_INCLUDED
 #define PROTOCOL_H_INCLUDED
 
-#include <stdint.h>
+#include "stdint.h"
 #include <netinet/in.h>
 #include <pthread.h>
 
@@ -141,6 +141,7 @@ public:
     ERRCOD addMsg(MYMSG* sourMsg,char name[]);
     int getAllMsg(recMsg* destArr);
     ERRCOD delAllMsg();
+    int getUnreadNum();
 };
 
 class clientConnected

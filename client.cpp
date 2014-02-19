@@ -17,7 +17,6 @@
 #endif
 
 
-#define SERVERPORT 12339
 
 //shared variable
 int serverSocket;
@@ -27,7 +26,7 @@ clientConnectedList cConList;
 sendMsgBuf sdBuf;
 
 pthread_rwlock_t bufLock,cConListLock;
-pthread_mutex_t sdBufLock;
+pthread_mutex_t sdBufLock,printMutex;
 pthread_cond_t bufNotEmpty,thdTerminate;
 //
 
@@ -37,16 +36,28 @@ void closeHandle(int conSocket)
     pthread_exit(0);
 }
 
+void closeHandle(int conSocket,char* scrName)
+{
+    close(conSocket);
+    pthread_rwlock_wrlock(&cConListLock);
+    cConList.disconnectWith(scrName);
+    pthread_rwlock_unlock(&cConListLock);
+    pthread_exit(0);
+}
+
 void* threadTypeA(void* in)
 {
     int conSocket=*(((conInfwRec*)in)->conSocket);
     char ipName[20];
+    #ifdef DEBUG
     int portName;
+    portName=(htons(((conInf*)in)->conAddr->sin_port));
+    #endif
     MYMSG msg[LMSGL];
     uint32_t length;
 
     strcpy(ipName,inet_ntoa(((conInf*)in)->conAddr->sin_addr));
-    portName=(htons(((conInf*)in)->conAddr->sin_port));
+
     #ifdef DEBUG
         printHeader(ipName,portName);
         printf("thread type a is created\n");
@@ -99,10 +110,11 @@ void* threadTypeA(void* in)
 void* threadTypeB(void* in)
 {
     char ipName[20];
+    #ifdef DEBUG
     int portName;
-
-    strcpy(ipName,inet_ntoa(((conInfwRec*)in)->conAddr->sin_addr));
     portName=(htons(((conInfwRec*)in)->conAddr->sin_port));
+    #endif
+    strcpy(ipName,inet_ntoa(((conInfwRec*)in)->conAddr->sin_addr));
     #ifdef DEBUG
         printHeader(ipName,portName);
         printf("thread type B is created\n");
@@ -117,6 +129,8 @@ void* threadTypeB(void* in)
     char screenName[MSGL];
     bool validClient=false;
 
+    screenName[0]=0;
+
     while(1)
     {
         uint32_t length;
@@ -129,8 +143,10 @@ void* threadTypeB(void* in)
             #ifdef DEBUG
                 printHeader(ipName,portName);
                 printf("connection close\n");
-                closeHandle(conSocket);
             #endif
+            if(screenName[0]==0) closeHandle(conSocket);
+            else closeHandle(conSocket,scrName);
+
         }
         switch (msg[0])
         {
@@ -295,6 +311,7 @@ int main(void)
     pthread_rwlock_init(&bufLock,NULL);
     pthread_rwlock_init(&cConListLock,NULL);
     pthread_mutex_init(&sdBufLock,NULL);
+    pthread_mutex_init(&printMutex,NULL);
     pthread_cond_init(&bufNotEmpty,NULL);
     pthread_cond_init(&thdTerminate,NULL);
 
@@ -323,8 +340,8 @@ int main(void)
     serverAddr.sin_addr.s_addr=ip.s_addr;
     serverAddr.sin_port=htons(SERVERPORT);
     uint32_t addrLen=sizeof(struct sockaddr_in);
-    if(connect(serverSocket,(struct sockaddr*)&serverAddr,addrLen)==-1) err("connect() in main");
 
+    if(connect(serverSocket,(struct sockaddr*)&serverAddr,addrLen)==-1) err("connect() in main");
     #ifdef DEBUG
         printf("Connect to server successful.\n");
         printf("Server ip: %s\n",inet_ntoa(serverAddr.sin_addr));
@@ -349,6 +366,10 @@ int main(void)
         printf("Write to server...\n");
     #endif
     write(serverSocket,msg,length);
+    #ifdef DEBUG
+        printf("Write complete\n");
+        printf("Tries to get message from server\n");
+    #endif
 
     msgRec.receiveMsg(msg);
     if (msg[0]!=LOGIN_OK) err("Login failed",CANNOTLOGIN);

@@ -353,6 +353,11 @@ ERRCOD recMsgBuf::delAllMsg()
     return 0;
 }
 
+int recMsgBuf::getUnreadNum()
+{
+    return unreadNum;
+}
+
 restMsgBuf::restMsgBuf()
 {
     next=NULL;
@@ -446,6 +451,8 @@ msgReceiver::~msgReceiver()
         cur=cur->next;
         delete temp;
     }
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
 }
 ERRCOD msgReceiver::receiveTypeAMsg(MYMSG* destMsg, uint32_t* msgLength)
 {
@@ -457,40 +464,7 @@ ERRCOD msgReceiver::receiveTypeAMsg(MYMSG* destMsg, uint32_t* msgLength)
     pthread_mutex_unlock(&mutex);
     return 0;
 }
-/*
-ERRCOD msgReceiver::receiveTypeAMsg(MYMSG* destMsg, uint32_t* msgLength)
-{
-    #ifdef DEBUG
-        printf("[receiverA] receive type a message\n");
-    #endif
-    pthread_mutex_lock(&mutex);
-    #ifdef DEBUG
-        printf("[receiverA] in lock area\n");
-    #endif
-    if(rStart->getTypeA(destMsg,msgLength)!=NOTFIND) return 0;
-    #ifdef DEBUG
-        printf("[receiverA] not find in buffer\n");
-    #endif
 
-    if(receiveMsg(destMsg,msgLength)==DISCONNECT)
-    {
-        pthread_mutex_unlock(&mutex);
-        #ifdef DEBUG
-            printf("[receiverA] out of lock area\n");
-        #endif
-        return DISCONNECT;
-    }
-    while(getMsgType(destMsg)!=TYPEA)
-    {
-        rStart->insert(destMsg,*msgLength);
-        receiveMsg(destMsg,msgLength);
-    }
-    pthread_mutex_unlock(&mutex);
-    #ifdef DEBUG
-        printf("[receiverA] out of lock area\n");
-    #endif
-    return 0;
-}*/
 
 ERRCOD msgReceiver::receiveTypeBMsg(MYMSG* destMsg, uint32_t* msgLength)
 {
@@ -592,9 +566,6 @@ ERRCOD msgReceiver::receiveMsg(MYMSG* destMsg,uint32_t* msgLength)
             }
         }
     }
-    printf("[receive msg] receive a message:\n");
-    char temp[20]="temp";
-    printMsg(temp,destMsg,*msgLength);
     if (!msgValid) return MSGINCOR;
     return 0;
 }
