@@ -38,6 +38,7 @@
 		<Unit filename="debug.h" />
 		<Unit filename="protocol.cpp" />
 		<Unit filename="protocol.h" />
+		<Unit filename="stdint.h" />
 		<Unit filename="ui.cpp" />
 		<Unit filename="ui.h" />
 		<Extensions>
